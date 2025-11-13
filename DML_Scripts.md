@@ -344,13 +344,7 @@ ORDER BY a.scheduled_date, a.scheduled_time;
 3. **Run SELECT queries** to verify data insertion
 4. **Test the relationship queries** to demonstrate foreign key connections
 
-## Key Features:
-
-- **Realistic medical data** with proper relationships
-- **Variety of test types** and results
-- **Different appointment types** (scheduled, walk-in, emergency)
-- **Mixed severity levels** for triage demonstration
-- **Complete data integrity** with all foreign keys satisfied
+#
 
 ## Notes:
 
