@@ -181,12 +181,6 @@ Notes, Is_Abnormal
 
 ## Normalization Summary
 
-### Benefits Achieved:
-1. **Eliminated redundancy** - Patient info stored once
-2. **Improved data integrity** - Foreign keys ensure valid relationships
-3. **Flexibility** - Can add multiple tests without schema changes
-4. **Scalability** - Efficient storage and retrieval
-5. **Maintainability** - Updates affect single records
 
 ### Key Relationships:
 - PATIENTS ← APPOINTMENTS (One-to-Many)
