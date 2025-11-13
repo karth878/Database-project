@@ -1,0 +1,83 @@
+erDiagram
+    PATIENTS ||--o{ APPOINTMENTS : "schedules"
+    APPOINTMENTS ||--|| ASSESSMENTS : "generates"
+    APPOINTMENTS ||--o{ DIAGNOSTIC_TESTS : "orders"
+    DIAGNOSTIC_TESTS ||--|| TEST_RESULTS : "produces"
+    STAFF ||--o{ APPOINTMENTS : "assigned_doctor"
+    STAFF ||--o{ DIAGNOSTIC_TESTS : "performs"
+    STAFF ||--o{ TEST_RESULTS : "reviews"
+
+    PATIENTS {
+        NUMBER patient_id PK
+        VARCHAR2 first_name
+        VARCHAR2 last_name
+        DATE date_of_birth
+        CHAR gender
+        VARCHAR2 phone
+        VARCHAR2 email
+        VARCHAR2 street_address
+        VARCHAR2 city
+        CHAR state
+        VARCHAR2 zip_code
+        VARCHAR2 insurance_provider
+        VARCHAR2 insurance_number
+    }
+
+    STAFF {
+        NUMBER staff_id PK
+        VARCHAR2 first_name
+        VARCHAR2 last_name
+        VARCHAR2 role
+        VARCHAR2 specialty
+        VARCHAR2 phone
+        VARCHAR2 email
+        VARCHAR2 license_number
+        DATE hire_date
+    }
+
+    APPOINTMENTS {
+        NUMBER appointment_id PK
+        NUMBER patient_id FK
+        DATE scheduled_date
+        VARCHAR2 scheduled_time
+        VARCHAR2 appointment_type
+        VARCHAR2 status
+        NUMBER doctor_id FK
+        VARCHAR2 room_number
+    }
+
+    ASSESSMENTS {
+        NUMBER assessment_id PK
+        NUMBER appointment_id FK
+        VARCHAR2 chief_complaint
+        VARCHAR2 vital_signs
+        VARCHAR2 blood_pressure
+        NUMBER temperature
+        NUMBER pulse
+        CLOB assessment_notes
+        VARCHAR2 preliminary_diagnosis
+        NUMBER severity_level
+    }
+
+    DIAGNOSTIC_TESTS {
+        NUMBER test_id PK
+        NUMBER appointment_id FK
+        VARCHAR2 test_type
+        VARCHAR2 test_name
+        DATE ordered_date
+        DATE performed_date
+        NUMBER technician_id FK
+        VARCHAR2 status
+        VARCHAR2 priority
+    }
+
+    TEST_RESULTS {
+        NUMBER result_id PK
+        NUMBER test_id FK
+        VARCHAR2 result_value
+        DATE result_date
+        CHAR is_normal
+        VARCHAR2 reference_range
+        VARCHAR2 notes
+        NUMBER reviewed_by FK
+    }
