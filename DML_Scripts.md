@@ -3,8 +3,8 @@
 
 ```sql
 -- =====================================================
--- DML SCRIPT FOR MEDIRST DIAGNOSTIC CENTER DATABASE
--- Author: Database Designers Inc.
+-- DML SCRIPT FOR URGENT CARE DIAGNOSTIC CENTER DATABASE
+-- Author: John Perrotti
 -- Purpose: Insert sample data and retrieve records
 -- =====================================================
 
