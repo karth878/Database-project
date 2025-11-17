@@ -3,9 +3,9 @@
 
 ```sql
 -- =====================================================
--- DDL SCRIPT FOR MEDIRST DIAGNOSTIC CENTER DATABASE
--- Author: Database Designers Inc.
--- Date: 2024
+-- DDL SCRIPT FOR URGENT CARE DIAGNOSTIC CENTER DATABASE
+-- Author: John Perrotti
+-- Date: November 19, 2025
 -- Database: Oracle 19c or higher
 -- =====================================================
 
