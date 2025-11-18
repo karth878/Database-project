@@ -52,7 +52,8 @@ erDiagram
     }
 
     DOCTORS {
-        NUMBER doctor_id PK_FK
+        %% CHANGED: PK_FK to PK "FK" to fix the parse error
+        NUMBER doctor_id PK "FK"
         VARCHAR2 specialty
         VARCHAR2 license_number
         VARCHAR2 board_certification
