@@ -3,9 +3,9 @@
 
 ```sql
 -- =====================================================
--- DDL SCRIPT FOR URGENT CARE DIAGNOSTIC CENTER DATABASE
--- Author: John Perrotti
--- Date: November 19, 2025
+-- DDL SCRIPT FOR MEDIRST DIAGNOSTIC CENTER DATABASE
+-- Author: Database Designers Inc.
+-- Date: 2024
 -- Database: Oracle 19c or higher
 -- =====================================================
 
@@ -16,14 +16,17 @@ DROP TABLE TEST_RESULTS CASCADE CONSTRAINTS;
 DROP TABLE DIAGNOSTIC_TESTS CASCADE CONSTRAINTS;
 DROP TABLE ASSESSMENTS CASCADE CONSTRAINTS;
 DROP TABLE APPOINTMENTS CASCADE CONSTRAINTS;
+DROP TABLE DOCTORS CASCADE CONSTRAINTS;
 DROP TABLE STAFF CASCADE CONSTRAINTS;
 DROP TABLE PATIENTS CASCADE CONSTRAINTS;
+DROP TABLE CLINIC_INFO CASCADE CONSTRAINTS;
 */
 
 -- =====================================================
 -- CREATE SEQUENCE OBJECTS FOR AUTO-INCREMENT IDs
 -- =====================================================
 
+CREATE SEQUENCE clinic_seq START WITH 1 INCREMENT BY 1;
 CREATE SEQUENCE patient_seq START WITH 1000 INCREMENT BY 1;
 CREATE SEQUENCE staff_seq START WITH 100 INCREMENT BY 1;
 CREATE SEQUENCE appointment_seq START WITH 5000 INCREMENT BY 1;
@@ -32,7 +35,31 @@ CREATE SEQUENCE test_seq START WITH 10000 INCREMENT BY 1;
 CREATE SEQUENCE result_seq START WITH 10000 INCREMENT BY 1;
 
 -- =====================================================
--- TABLE 1: PATIENTS
+-- TABLE 1: CLINIC_INFO
+-- Stores information about the medical facility
+-- =====================================================
+
+CREATE TABLE CLINIC_INFO (
+    clinic_id          NUMBER(10)      NOT NULL,
+    clinic_name        VARCHAR2(100)   NOT NULL,
+    street_address     VARCHAR2(100)   NOT NULL,
+    city               VARCHAR2(50)    NOT NULL,
+    state              CHAR(2)         NOT NULL,
+    zip_code           VARCHAR2(10)    NOT NULL,
+    phone              VARCHAR2(15)    NOT NULL,
+    email              VARCHAR2(100)   NOT NULL,
+    fax                VARCHAR2(15),
+    operating_hours    VARCHAR2(100)   DEFAULT 'Mon-Fri: 8AM-8PM, Sat: 9AM-5PM',
+    emergency_contact  VARCHAR2(15),
+    -- Constraints
+    CONSTRAINT pk_clinic PRIMARY KEY (clinic_id),
+    CONSTRAINT uq_clinic_email UNIQUE (email),
+    CONSTRAINT chk_clinic_state CHECK (REGEXP_LIKE(state, '^[A-Z]{2}$')),
+    CONSTRAINT chk_clinic_phone CHECK (REGEXP_LIKE(phone, '^[0-9-() ]+$'))
+);
+
+-- =====================================================
+-- TABLE 2: PATIENTS
 -- Stores patient demographic and insurance information
 -- =====================================================
 
@@ -54,8 +81,8 @@ CREATE TABLE PATIENTS (
     CONSTRAINT pk_patients PRIMARY KEY (patient_id),
     CONSTRAINT uq_patient_email UNIQUE (email),
     CONSTRAINT chk_gender CHECK (gender IN ('M', 'F', 'O')),
-    CONSTRAINT chk_state CHECK (REGEXP_LIKE(state, '^[A-Z]{2}$')),
-    CONSTRAINT chk_phone CHECK (REGEXP_LIKE(phone, '^[0-9-() ]+$'))
+    CONSTRAINT chk_patient_state CHECK (REGEXP_LIKE(state, '^[A-Z]{2}$') OR state IS NULL),
+    CONSTRAINT chk_patient_phone CHECK (REGEXP_LIKE(phone, '^[0-9-() ]+$'))
 );
 
 -- Create indexes for PATIENTS
@@ -63,8 +90,8 @@ CREATE INDEX idx_patient_name ON PATIENTS(last_name, first_name);
 CREATE INDEX idx_patient_dob ON PATIENTS(date_of_birth);
 
 -- =====================================================
--- TABLE 2: STAFF
--- Stores all staff members (doctors, nurses, technicians)
+-- TABLE 3: STAFF
+-- Base table for all staff members (doctors, nurses, technicians)
 -- =====================================================
 
 CREATE TABLE STAFF (
@@ -72,15 +99,15 @@ CREATE TABLE STAFF (
     first_name        VARCHAR2(50)    NOT NULL,
     last_name         VARCHAR2(50)    NOT NULL,
     role              VARCHAR2(30)    NOT NULL,
-    specialty         VARCHAR2(50),
     phone             VARCHAR2(15)    NOT NULL,
     email             VARCHAR2(100)   NOT NULL,
-    license_number    VARCHAR2(30),
     hire_date         DATE            DEFAULT SYSDATE NOT NULL,
+    clinic_id         NUMBER(10)      NOT NULL,
     -- Constraints
     CONSTRAINT pk_staff PRIMARY KEY (staff_id),
+    CONSTRAINT fk_staff_clinic FOREIGN KEY (clinic_id)
+        REFERENCES CLINIC_INFO(clinic_id),
     CONSTRAINT uq_staff_email UNIQUE (email),
-    CONSTRAINT uq_license UNIQUE (license_number),
     CONSTRAINT chk_role CHECK (role IN ('Doctor', 'Nurse', 'Technician', 'Admin')),
     CONSTRAINT chk_staff_phone CHECK (REGEXP_LIKE(phone, '^[0-9-() ]+$'))
 );
@@ -88,27 +115,56 @@ CREATE TABLE STAFF (
 -- Create indexes for STAFF
 CREATE INDEX idx_staff_name ON STAFF(last_name, first_name);
 CREATE INDEX idx_staff_role ON STAFF(role);
+CREATE INDEX idx_staff_clinic ON STAFF(clinic_id, role);
 
 -- =====================================================
--- TABLE 3: APPOINTMENTS
+-- TABLE 4: DOCTORS (Subtype of STAFF)
+-- Stores additional doctor-specific information
+-- =====================================================
+
+CREATE TABLE DOCTORS (
+    doctor_id             NUMBER(10)      NOT NULL,
+    specialty             VARCHAR2(50)    NOT NULL,
+    license_number        VARCHAR2(30)    NOT NULL,
+    board_certification   VARCHAR2(100),
+    workplace             VARCHAR2(100)   DEFAULT 'MedFirst Diagnostic Center',
+    hospital_affiliation  VARCHAR2(100),
+    years_experience      NUMBER(3)       DEFAULT 0,
+    -- Constraints
+    CONSTRAINT pk_doctors PRIMARY KEY (doctor_id),
+    CONSTRAINT fk_doctor_staff FOREIGN KEY (doctor_id)
+        REFERENCES STAFF(staff_id),
+    CONSTRAINT uq_license UNIQUE (license_number),
+    CONSTRAINT chk_experience CHECK (years_experience >= 0 AND years_experience <= 100)
+);
+
+-- Create indexes for DOCTORS
+CREATE INDEX idx_doctor_specialty ON DOCTORS(specialty);
+CREATE INDEX idx_doctor_workplace ON DOCTORS(workplace);
+
+-- =====================================================
+-- TABLE 5: APPOINTMENTS
 -- Tracks all patient appointments and visits
 -- =====================================================
 
 CREATE TABLE APPOINTMENTS (
-    appointment_id    NUMBER(10)      NOT NULL,
-    patient_id        NUMBER(10)      NOT NULL,
-    scheduled_date    DATE            NOT NULL,
-    scheduled_time    VARCHAR2(5)     NOT NULL,
-    appointment_type  VARCHAR2(30)    DEFAULT 'Scheduled',
-    status            VARCHAR2(20)    DEFAULT 'Scheduled',
-    doctor_id         NUMBER(10)      NOT NULL,
-    room_number       VARCHAR2(10),
+    appointment_id       NUMBER(10)      NOT NULL,
+    patient_id           NUMBER(10)      NOT NULL,
+    scheduled_date       DATE            NOT NULL,
+    scheduled_time       VARCHAR2(5)     NOT NULL,
+    appointment_type     VARCHAR2(30)    DEFAULT 'Scheduled',
+    status               VARCHAR2(20)    DEFAULT 'Scheduled',
+    attending_staff_id   NUMBER(10)      NOT NULL,
+    clinic_id            NUMBER(10)      NOT NULL,
+    room_number          VARCHAR2(10),
     -- Constraints
     CONSTRAINT pk_appointments PRIMARY KEY (appointment_id),
     CONSTRAINT fk_appt_patient FOREIGN KEY (patient_id) 
         REFERENCES PATIENTS(patient_id),
-    CONSTRAINT fk_appt_doctor FOREIGN KEY (doctor_id) 
+    CONSTRAINT fk_appt_staff FOREIGN KEY (attending_staff_id) 
         REFERENCES STAFF(staff_id),
+    CONSTRAINT fk_appt_clinic FOREIGN KEY (clinic_id)
+        REFERENCES CLINIC_INFO(clinic_id),
     CONSTRAINT chk_appt_type CHECK (appointment_type IN ('Walk-in', 'Scheduled', 'Emergency')),
     CONSTRAINT chk_appt_status CHECK (status IN ('Scheduled', 'Completed', 'Cancelled', 'No-Show')),
     CONSTRAINT chk_time_format CHECK (REGEXP_LIKE(scheduled_time, '^([01][0-9]|2[0-3]):[0-5][0-9]$'))
@@ -117,10 +173,11 @@ CREATE TABLE APPOINTMENTS (
 -- Create indexes for APPOINTMENTS
 CREATE INDEX idx_appt_patient ON APPOINTMENTS(patient_id);
 CREATE INDEX idx_appt_date ON APPOINTMENTS(scheduled_date, scheduled_time);
-CREATE INDEX idx_appt_doctor ON APPOINTMENTS(doctor_id);
+CREATE INDEX idx_appt_staff ON APPOINTMENTS(attending_staff_id);
+CREATE INDEX idx_appt_clinic ON APPOINTMENTS(clinic_id, scheduled_date);
 
 -- =====================================================
--- TABLE 4: ASSESSMENTS
+-- TABLE 6: ASSESSMENTS
 -- Medical assessment details for each appointment
 -- =====================================================
 
@@ -140,8 +197,8 @@ CREATE TABLE ASSESSMENTS (
     CONSTRAINT fk_assess_appt FOREIGN KEY (appointment_id) 
         REFERENCES APPOINTMENTS(appointment_id),
     CONSTRAINT uq_assess_appt UNIQUE (appointment_id),
-    CONSTRAINT chk_temperature CHECK (temperature BETWEEN 90.0 AND 110.0),
-    CONSTRAINT chk_pulse CHECK (pulse BETWEEN 40 AND 200),
+    CONSTRAINT chk_temperature CHECK (temperature BETWEEN 90.0 AND 110.0 OR temperature IS NULL),
+    CONSTRAINT chk_pulse CHECK (pulse BETWEEN 40 AND 200 OR pulse IS NULL),
     CONSTRAINT chk_severity CHECK (severity_level BETWEEN 1 AND 5),
     CONSTRAINT chk_bp_format CHECK (REGEXP_LIKE(blood_pressure, '^[0-9]{2,3}/[0-9]{2,3}$') OR blood_pressure IS NULL)
 );
@@ -150,26 +207,29 @@ CREATE TABLE ASSESSMENTS (
 CREATE INDEX idx_assess_appt ON ASSESSMENTS(appointment_id);
 
 -- =====================================================
--- TABLE 5: DIAGNOSTIC_TESTS
--- Tracks all diagnostic tests ordered
+-- TABLE 7: DIAGNOSTIC_TESTS
+-- Tracks all diagnostic tests ordered (ONLY BY DOCTORS)
 -- =====================================================
 
 CREATE TABLE DIAGNOSTIC_TESTS (
-    test_id           NUMBER(10)      NOT NULL,
-    appointment_id    NUMBER(10)      NOT NULL,
-    test_type         VARCHAR2(50)    NOT NULL,
-    test_name         VARCHAR2(100)   NOT NULL,
-    ordered_date      DATE            DEFAULT SYSDATE NOT NULL,
-    performed_date    DATE,
-    technician_id     NUMBER(10),
-    status            VARCHAR2(20)    DEFAULT 'Ordered',
-    priority          VARCHAR2(10)    DEFAULT 'Routine',
+    test_id              NUMBER(10)      NOT NULL,
+    appointment_id       NUMBER(10)      NOT NULL,
+    test_type            VARCHAR2(50)    NOT NULL,
+    test_name            VARCHAR2(100)   NOT NULL,
+    ordered_date         DATE            DEFAULT SYSDATE NOT NULL,
+    performed_date       DATE,
+    ordering_doctor_id   NUMBER(10)      NOT NULL, -- Must be a doctor
+    technician_id        NUMBER(10),     -- Can be any staff member
+    status               VARCHAR2(20)    DEFAULT 'Ordered',
+    priority             VARCHAR2(10)    DEFAULT 'Routine',
     -- Constraints
     CONSTRAINT pk_tests PRIMARY KEY (test_id),
     CONSTRAINT fk_test_appt FOREIGN KEY (appointment_id) 
         REFERENCES APPOINTMENTS(appointment_id),
+    CONSTRAINT fk_test_doctor FOREIGN KEY (ordering_doctor_id) 
+        REFERENCES DOCTORS(doctor_id),  -- Only doctors can order
     CONSTRAINT fk_test_tech FOREIGN KEY (technician_id) 
-        REFERENCES STAFF(staff_id),
+        REFERENCES STAFF(staff_id),     -- Any staff can perform
     CONSTRAINT chk_test_status CHECK (status IN ('Ordered', 'In-Progress', 'Completed', 'Cancelled')),
     CONSTRAINT chk_priority CHECK (priority IN ('Routine', 'Urgent', 'STAT')),
     CONSTRAINT chk_test_dates CHECK (performed_date >= ordered_date OR performed_date IS NULL)
@@ -177,42 +237,53 @@ CREATE TABLE DIAGNOSTIC_TESTS (
 
 -- Create indexes for DIAGNOSTIC_TESTS
 CREATE INDEX idx_test_appt ON DIAGNOSTIC_TESTS(appointment_id);
+CREATE INDEX idx_test_doctor ON DIAGNOSTIC_TESTS(ordering_doctor_id);
 CREATE INDEX idx_test_tech ON DIAGNOSTIC_TESTS(technician_id);
 CREATE INDEX idx_test_status ON DIAGNOSTIC_TESTS(status);
 
 -- =====================================================
--- TABLE 6: TEST_RESULTS
--- Stores results from diagnostic tests
+-- TABLE 8: TEST_RESULTS
+-- Stores results from diagnostic tests (REVIEWED BY DOCTORS ONLY)
 -- =====================================================
 
 CREATE TABLE TEST_RESULTS (
-    result_id         NUMBER(10)      NOT NULL,
-    test_id           NUMBER(10)      NOT NULL,
-    result_value      VARCHAR2(500)   NOT NULL,
-    result_date       DATE            DEFAULT SYSDATE NOT NULL,
-    is_normal         CHAR(1)         DEFAULT 'Y',
-    reference_range   VARCHAR2(100),
-    notes             VARCHAR2(1000),
-    reviewed_by       NUMBER(10)      NOT NULL,
+    result_id            NUMBER(10)      NOT NULL,
+    test_id              NUMBER(10)      NOT NULL,
+    result_value         VARCHAR2(500)   NOT NULL,
+    result_date          DATE            DEFAULT SYSDATE NOT NULL,
+    is_normal            CHAR(1)         DEFAULT 'Y',
+    reference_range      VARCHAR2(100),
+    notes                VARCHAR2(1000),
+    reviewing_doctor_id  NUMBER(10)      NOT NULL, -- Must be a doctor
     -- Constraints
     CONSTRAINT pk_results PRIMARY KEY (result_id),
     CONSTRAINT fk_result_test FOREIGN KEY (test_id) 
         REFERENCES DIAGNOSTIC_TESTS(test_id),
-    CONSTRAINT fk_result_reviewer FOREIGN KEY (reviewed_by) 
-        REFERENCES STAFF(staff_id),
+    CONSTRAINT fk_result_doctor FOREIGN KEY (reviewing_doctor_id) 
+        REFERENCES DOCTORS(doctor_id),  -- Only doctors can review
     CONSTRAINT uq_test_result UNIQUE (test_id),
     CONSTRAINT chk_is_normal CHECK (is_normal IN ('Y', 'N'))
 );
 
 -- Create indexes for TEST_RESULTS
 CREATE INDEX idx_result_test ON TEST_RESULTS(test_id);
-CREATE INDEX idx_result_reviewer ON TEST_RESULTS(reviewed_by);
+CREATE INDEX idx_result_doctor ON TEST_RESULTS(reviewing_doctor_id);
 CREATE INDEX idx_result_abnormal ON TEST_RESULTS(is_normal);
 
 -- =====================================================
 -- CREATE TRIGGERS FOR AUTO-INCREMENT (Optional)
 -- Use if not using sequences manually in INSERT
 -- =====================================================
+
+CREATE OR REPLACE TRIGGER clinic_id_trigger
+BEFORE INSERT ON CLINIC_INFO
+FOR EACH ROW
+BEGIN
+    IF :NEW.clinic_id IS NULL THEN
+        SELECT clinic_seq.NEXTVAL INTO :NEW.clinic_id FROM dual;
+    END IF;
+END;
+/
 
 CREATE OR REPLACE TRIGGER patient_id_trigger
 BEFORE INSERT ON PATIENTS
@@ -275,6 +346,28 @@ END;
 /
 
 -- =====================================================
+-- BUSINESS RULE ENFORCEMENT TRIGGER
+-- Ensure only doctors can be in DOCTORS table
+-- =====================================================
+
+CREATE OR REPLACE TRIGGER doctor_role_check
+BEFORE INSERT OR UPDATE ON DOCTORS
+FOR EACH ROW
+DECLARE
+    v_role VARCHAR2(30);
+BEGIN
+    SELECT role INTO v_role
+    FROM STAFF
+    WHERE staff_id = :NEW.doctor_id;
+    
+    IF v_role != 'Doctor' THEN
+        RAISE_APPLICATION_ERROR(-20001, 
+            'Only staff members with role=Doctor can be in DOCTORS table');
+    END IF;
+END;
+/
+
+-- =====================================================
 -- GRANT PERMISSIONS (Adjust based on user roles)
 -- =====================================================
 
@@ -282,25 +375,26 @@ END;
 -- GRANT SELECT, INSERT, UPDATE ON PATIENTS TO app_user;
 -- GRANT SELECT, INSERT, UPDATE ON APPOINTMENTS TO app_user;
 -- GRANT SELECT ON STAFF TO app_user;
+-- GRANT SELECT ON DOCTORS TO app_user;
 
 -- =====================================================
 -- END OF DDL SCRIPT
--- Total Tables Created: 6
--- Total Indexes Created: 14
--- Total Sequences Created: 6
--- Total Triggers Created: 6
+-- Total Tables Created: 8
+-- Total Indexes Created: 18
+-- Total Sequences Created: 7
+-- Total Triggers Created: 8
 -- =====================================================
 
 -- Verify tables were created successfully
 SELECT table_name FROM user_tables 
-WHERE table_name IN ('PATIENTS','STAFF','APPOINTMENTS',
-                     'ASSESSMENTS','DIAGNOSTIC_TESTS','TEST_RESULTS');
+WHERE table_name IN ('CLINIC_INFO','PATIENTS','STAFF','DOCTORS',
+                     'APPOINTMENTS','ASSESSMENTS','DIAGNOSTIC_TESTS','TEST_RESULTS');
 
 -- Verify constraints
 SELECT constraint_name, constraint_type, table_name 
 FROM user_constraints 
-WHERE table_name IN ('PATIENTS','STAFF','APPOINTMENTS',
-                     'ASSESSMENTS','DIAGNOSTIC_TESTS','TEST_RESULTS')
+WHERE table_name IN ('CLINIC_INFO','PATIENTS','STAFF','DOCTORS',
+                     'APPOINTMENTS','ASSESSMENTS','DIAGNOSTIC_TESTS','TEST_RESULTS')
 ORDER BY table_name, constraint_type;
 ```
 
@@ -317,10 +411,14 @@ ORDER BY table_name, constraint_type;
 
 ## Key Features of This DDL:
 
+- **CLINIC_INFO table** for facility management
+- **DOCTORS as subtype** of STAFF (IS-A relationship)
+- **Role-based constraints**: Only doctors can order tests and review results
+- **Workplace tracking** for doctors' external affiliations
 - **Sequences** for auto-incrementing primary keys
-- **Check constraints** for data validation (gender, phone format, etc.)
+- **Check constraints** for data validation
 - **Foreign key constraints** to maintain referential integrity
 - **Unique constraints** on emails and license numbers
 - **Indexes** on commonly queried columns for performance
-- **Triggers** for automatic ID assignment
-- **Regular expressions** for format validation (phone, time, blood pressure)
+- **Triggers** for automatic ID assignment and business rule enforcement
+- **Regular expressions** for format validation
