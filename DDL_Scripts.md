@@ -1,16 +1,11 @@
 # DDL Scripts - MedFirst Diagnostic Center
-## Data Definition Language for Oracle Database
 
 ```sql
 -- =====================================================
--- DDL SCRIPT FOR MEDIRST DIAGNOSTIC CENTER DATABASE
--- Author: Database Designers Inc.
--- Date: 2024
--- Database: Oracle 19c or higher
+-- DDL SCRIPT FOR MEDFIRST DIAGNOSTIC CENTER DATABASE
 -- =====================================================
 
 -- Drop existing tables if they exist (for clean rebuild)
--- Note: Comment these out for first-time creation
 /*
 DROP TABLE TEST_RESULTS CASCADE CONSTRAINTS;
 DROP TABLE DIAGNOSTIC_TESTS CASCADE CONSTRAINTS;
@@ -23,7 +18,7 @@ DROP TABLE CLINIC_INFO CASCADE CONSTRAINTS;
 */
 
 -- =====================================================
--- CREATE SEQUENCE OBJECTS FOR AUTO-INCREMENT IDs
+-- SEQUENCES
 -- =====================================================
 
 CREATE SEQUENCE clinic_seq START WITH 1 INCREMENT BY 1;
@@ -35,8 +30,7 @@ CREATE SEQUENCE test_seq START WITH 10000 INCREMENT BY 1;
 CREATE SEQUENCE result_seq START WITH 10000 INCREMENT BY 1;
 
 -- =====================================================
--- TABLE 1: CLINIC_INFO
--- Stores information about the medical facility
+-- CLINIC_INFO
 -- =====================================================
 
 CREATE TABLE CLINIC_INFO (
@@ -59,8 +53,7 @@ CREATE TABLE CLINIC_INFO (
 );
 
 -- =====================================================
--- TABLE 2: PATIENTS
--- Stores patient demographic and insurance information
+-- PATIENTS
 -- =====================================================
 
 CREATE TABLE PATIENTS (
@@ -85,13 +78,11 @@ CREATE TABLE PATIENTS (
     CONSTRAINT chk_patient_phone CHECK (REGEXP_LIKE(phone, '^[0-9-() ]+$'))
 );
 
--- Create indexes for PATIENTS
 CREATE INDEX idx_patient_name ON PATIENTS(last_name, first_name);
 CREATE INDEX idx_patient_dob ON PATIENTS(date_of_birth);
 
 -- =====================================================
--- TABLE 3: STAFF
--- Base table for all staff members (doctors, nurses, technicians)
+-- STAFF
 -- =====================================================
 
 CREATE TABLE STAFF (
@@ -112,14 +103,12 @@ CREATE TABLE STAFF (
     CONSTRAINT chk_staff_phone CHECK (REGEXP_LIKE(phone, '^[0-9-() ]+$'))
 );
 
--- Create indexes for STAFF
 CREATE INDEX idx_staff_name ON STAFF(last_name, first_name);
 CREATE INDEX idx_staff_role ON STAFF(role);
 CREATE INDEX idx_staff_clinic ON STAFF(clinic_id, role);
 
 -- =====================================================
--- TABLE 4: DOCTORS (Subtype of STAFF)
--- Stores additional doctor-specific information
+-- DOCTORS
 -- =====================================================
 
 CREATE TABLE DOCTORS (
@@ -138,13 +127,11 @@ CREATE TABLE DOCTORS (
     CONSTRAINT chk_experience CHECK (years_experience >= 0 AND years_experience <= 100)
 );
 
--- Create indexes for DOCTORS
 CREATE INDEX idx_doctor_specialty ON DOCTORS(specialty);
 CREATE INDEX idx_doctor_workplace ON DOCTORS(workplace);
 
 -- =====================================================
--- TABLE 5: APPOINTMENTS
--- Tracks all patient appointments and visits
+-- APPOINTMENTS
 -- =====================================================
 
 CREATE TABLE APPOINTMENTS (
@@ -170,15 +157,13 @@ CREATE TABLE APPOINTMENTS (
     CONSTRAINT chk_time_format CHECK (REGEXP_LIKE(scheduled_time, '^([01][0-9]|2[0-3]):[0-5][0-9]$'))
 );
 
--- Create indexes for APPOINTMENTS
 CREATE INDEX idx_appt_patient ON APPOINTMENTS(patient_id);
 CREATE INDEX idx_appt_date ON APPOINTMENTS(scheduled_date, scheduled_time);
 CREATE INDEX idx_appt_staff ON APPOINTMENTS(attending_staff_id);
 CREATE INDEX idx_appt_clinic ON APPOINTMENTS(clinic_id, scheduled_date);
 
 -- =====================================================
--- TABLE 6: ASSESSMENTS
--- Medical assessment details for each appointment
+-- ASSESSMENTS
 -- =====================================================
 
 CREATE TABLE ASSESSMENTS (
@@ -203,12 +188,10 @@ CREATE TABLE ASSESSMENTS (
     CONSTRAINT chk_bp_format CHECK (REGEXP_LIKE(blood_pressure, '^[0-9]{2,3}/[0-9]{2,3}$') OR blood_pressure IS NULL)
 );
 
--- Create index for ASSESSMENTS
 CREATE INDEX idx_assess_appt ON ASSESSMENTS(appointment_id);
 
 -- =====================================================
--- TABLE 7: DIAGNOSTIC_TESTS
--- Tracks all diagnostic tests ordered (ONLY BY DOCTORS)
+-- DIAGNOSTIC_TESTS
 -- =====================================================
 
 CREATE TABLE DIAGNOSTIC_TESTS (
@@ -235,15 +218,13 @@ CREATE TABLE DIAGNOSTIC_TESTS (
     CONSTRAINT chk_test_dates CHECK (performed_date >= ordered_date OR performed_date IS NULL)
 );
 
--- Create indexes for DIAGNOSTIC_TESTS
 CREATE INDEX idx_test_appt ON DIAGNOSTIC_TESTS(appointment_id);
 CREATE INDEX idx_test_doctor ON DIAGNOSTIC_TESTS(ordering_doctor_id);
 CREATE INDEX idx_test_tech ON DIAGNOSTIC_TESTS(technician_id);
 CREATE INDEX idx_test_status ON DIAGNOSTIC_TESTS(status);
 
 -- =====================================================
--- TABLE 8: TEST_RESULTS
--- Stores results from diagnostic tests (REVIEWED BY DOCTORS ONLY)
+-- TEST_RESULTS
 -- =====================================================
 
 CREATE TABLE TEST_RESULTS (
@@ -265,14 +246,12 @@ CREATE TABLE TEST_RESULTS (
     CONSTRAINT chk_is_normal CHECK (is_normal IN ('Y', 'N'))
 );
 
--- Create indexes for TEST_RESULTS
 CREATE INDEX idx_result_test ON TEST_RESULTS(test_id);
 CREATE INDEX idx_result_doctor ON TEST_RESULTS(reviewing_doctor_id);
 CREATE INDEX idx_result_abnormal ON TEST_RESULTS(is_normal);
 
 -- =====================================================
--- CREATE TRIGGERS FOR AUTO-INCREMENT (Optional)
--- Use if not using sequences manually in INSERT
+-- TRIGGERS
 -- =====================================================
 
 CREATE OR REPLACE TRIGGER clinic_id_trigger
@@ -346,8 +325,7 @@ END;
 /
 
 -- =====================================================
--- BUSINESS RULE ENFORCEMENT TRIGGER
--- Ensure only doctors can be in DOCTORS table
+-- BUSINESS RULE TRIGGERS
 -- =====================================================
 
 CREATE OR REPLACE TRIGGER doctor_role_check
@@ -368,29 +346,13 @@ END;
 /
 
 -- =====================================================
--- GRANT PERMISSIONS (Adjust based on user roles)
+-- VERIFICATION
 -- =====================================================
 
--- Example permissions for application user
--- GRANT SELECT, INSERT, UPDATE ON PATIENTS TO app_user;
--- GRANT SELECT, INSERT, UPDATE ON APPOINTMENTS TO app_user;
--- GRANT SELECT ON STAFF TO app_user;
--- GRANT SELECT ON DOCTORS TO app_user;
-
--- =====================================================
--- END OF DDL SCRIPT
--- Total Tables Created: 8
--- Total Indexes Created: 18
--- Total Sequences Created: 7
--- Total Triggers Created: 8
--- =====================================================
-
--- Verify tables were created successfully
 SELECT table_name FROM user_tables 
 WHERE table_name IN ('CLINIC_INFO','PATIENTS','STAFF','DOCTORS',
                      'APPOINTMENTS','ASSESSMENTS','DIAGNOSTIC_TESTS','TEST_RESULTS');
 
--- Verify constraints
 SELECT constraint_name, constraint_type, table_name 
 FROM user_constraints 
 WHERE table_name IN ('CLINIC_INFO','PATIENTS','STAFF','DOCTORS',
@@ -398,27 +360,3 @@ WHERE table_name IN ('CLINIC_INFO','PATIENTS','STAFF','DOCTORS',
 ORDER BY table_name, constraint_type;
 ```
 
----
-
-## Notes for DataGrip Usage:
-
-1. **Copy and paste** the entire script into DataGrip's SQL editor
-2. **Execute** the script (Ctrl+Enter or click the green arrow)
-3. **Check for errors** in the console output
-4. If you get "table already exists" errors, uncomment the DROP statements at the beginning
-5. The script includes triggers for auto-increment - you can insert without specifying IDs
-6. The verification queries at the end confirm successful creation
-
-## Key Features of This DDL:
-
-- **CLINIC_INFO table** for facility management
-- **DOCTORS as subtype** of STAFF (IS-A relationship)
-- **Role-based constraints**: Only doctors can order tests and review results
-- **Workplace tracking** for doctors' external affiliations
-- **Sequences** for auto-incrementing primary keys
-- **Check constraints** for data validation
-- **Foreign key constraints** to maintain referential integrity
-- **Unique constraints** on emails and license numbers
-- **Indexes** on commonly queried columns for performance
-- **Triggers** for automatic ID assignment and business rule enforcement
-- **Regular expressions** for format validation

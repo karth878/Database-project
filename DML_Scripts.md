@@ -1,13 +1,8 @@
 # DML Scripts - MedFirst Diagnostic Center
-## Data Manipulation Language for Sample Data - Production Ready
 
 ```sql
 -- =====================================================
 -- DML SCRIPT FOR MEDFIRST DIAGNOSTIC CENTER DATABASE
--- Author: Database Designers Inc.
--- Purpose: Insert sample data and retrieve records
--- Matches ERD and DDL perfectly
--- Date: 2024-11-18
 -- =====================================================
 
 -- Enable error handling
@@ -15,9 +10,7 @@ SET DEFINE OFF;
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
 
 -- =====================================================
--- OPTIONAL: Clear existing data
--- WARNING: This will permanently delete all data!
--- Only uncomment if you need to reset the database.
+-- CLEAR DATA (Optional)
 -- =====================================================
 /*
 DELETE FROM TEST_RESULTS;
@@ -29,7 +22,7 @@ DELETE FROM STAFF;
 DELETE FROM PATIENTS;
 DELETE FROM CLINIC_INFO;
 
--- Reset sequences to starting values
+-- Reset sequences
 ALTER SEQUENCE clinic_seq RESTART START WITH 1;
 ALTER SEQUENCE patient_seq RESTART START WITH 1000;
 ALTER SEQUENCE staff_seq RESTART START WITH 100;
@@ -42,13 +35,7 @@ COMMIT;
 */
 
 -- =====================================================
--- SECTION 1: INSERT STATEMENTS
--- Insert 5+ sample records into each table
--- Using triggers for auto-increment (no need for NEXTVAL)
--- =====================================================
-
--- =====================================================
--- INSERT INTO CLINIC_INFO (1 main clinic record)
+-- SAMPLE DATA: CLINIC_INFO
 -- =====================================================
 
 INSERT INTO CLINIC_INFO (clinic_name, street_address, city, state, zip_code, 
@@ -58,7 +45,7 @@ VALUES ('MedFirst Diagnostic Center', '500 Medical Plaza Dr',
         '555-100-2001', 'Mon-Fri: 8AM-8PM, Sat: 9AM-5PM, Sun: 10AM-4PM', '555-100-9999');
 
 -- =====================================================
--- INSERT INTO PATIENTS (5 records)
+-- SAMPLE DATA: PATIENTS
 -- =====================================================
 
 INSERT INTO PATIENTS (first_name, last_name, date_of_birth, gender, 
@@ -97,11 +84,10 @@ VALUES ('Robert', 'Brown', DATE '1965-09-08', 'M',
         'Medicare', 'MED321654987');
 
 -- =====================================================
--- INSERT INTO STAFF (8 records - 3 doctors, 2 nurses, 2 technicians, 1 admin)
--- Note: clinic_id will be fetched dynamically
+-- SAMPLE DATA: STAFF
 -- =====================================================
 
--- Doctors (will also be in DOCTORS table)
+-- Doctors
 INSERT INTO STAFF (first_name, last_name, role, phone, email, hire_date, clinic_id)
 VALUES ('William', 'Chen', 'Doctor', 
         '555-200-1111', 'wchen@medfirst.com', DATE '2019-06-01', 
@@ -146,8 +132,7 @@ VALUES ('David', 'Miller', 'Admin',
         (SELECT clinic_id FROM CLINIC_INFO WHERE clinic_name = 'MedFirst Diagnostic Center'));
 
 -- =====================================================
--- INSERT INTO DOCTORS (3 records for the doctor staff members)
--- Uses subqueries to fetch actual staff_ids dynamically
+-- SAMPLE DATA: DOCTORS
 -- =====================================================
 
 INSERT INTO DOCTORS (doctor_id, specialty, license_number, board_certification, 
@@ -169,8 +154,7 @@ VALUES ((SELECT staff_id FROM STAFF WHERE email = 'jthompson@medfirst.com'),
         'MedFirst Diagnostic Center', 'Memorial Hospital', 15);
 
 -- =====================================================
--- INSERT INTO APPOINTMENTS (5 records)
--- Using current dates (adjust as needed for demo)
+-- SAMPLE DATA: APPOINTMENTS
 -- =====================================================
 
 INSERT INTO APPOINTMENTS (patient_id, scheduled_date, scheduled_time, 
@@ -214,8 +198,7 @@ VALUES ((SELECT patient_id FROM PATIENTS WHERE email = 'rbrown@email.com'),
         'A104');
 
 -- =====================================================
--- INSERT INTO ASSESSMENTS (5 records)
--- One for each completed appointment
+-- SAMPLE DATA: ASSESSMENTS
 -- =====================================================
 
 INSERT INTO ASSESSMENTS (appointment_id, chief_complaint, 
@@ -279,8 +262,7 @@ VALUES ((SELECT appointment_id FROM APPOINTMENTS
         'Lumbar Strain', 2);
 
 -- =====================================================
--- INSERT INTO DIAGNOSTIC_TESTS (5 records)
--- Note: Only doctors can order tests (FK to DOCTORS table)
+-- SAMPLE DATA: DIAGNOSTIC_TESTS
 -- =====================================================
 
 INSERT INTO DIAGNOSTIC_TESTS (appointment_id, test_type, test_name, 
@@ -349,8 +331,7 @@ VALUES ((SELECT appointment_id FROM APPOINTMENTS
         'Completed', 'Routine');
 
 -- =====================================================
--- INSERT INTO TEST_RESULTS (5 records)
--- Note: Only doctors can review results (FK to DOCTORS table)
+-- SAMPLE DATA: TEST_RESULTS
 -- =====================================================
 
 INSERT INTO TEST_RESULTS (test_id, result_value, result_date, 
@@ -417,8 +398,7 @@ VALUES ((SELECT test_id FROM DIAGNOSTIC_TESTS
 COMMIT;
 
 -- =====================================================
--- SECTION 2: VERIFICATION QUERIES
--- Verify all data was inserted correctly
+-- VERIFICATION QUERIES
 -- =====================================================
 
 -- Verify record counts
@@ -525,8 +505,7 @@ FROM TEST_RESULTS tr
 WHERE EXISTS (SELECT 1 FROM DOCTORS d WHERE d.doctor_id = tr.reviewing_doctor_id);
 
 -- =====================================================
--- SECTION 3: SELECT STATEMENTS
--- Retrieve all rows and columns from each table
+-- DATA RETRIEVAL
 -- =====================================================
 
 SELECT 'Data Retrieval: All Tables' AS section_title FROM DUAL;
@@ -588,8 +567,7 @@ SELECT * FROM TEST_RESULTS
 ORDER BY result_id;
 
 -- =====================================================
--- SECTION 4: USEFUL QUERIES FOR DEMONSTRATION
--- Show relationships between tables and business rules
+-- DEMONSTRATION QUERIES
 -- =====================================================
 
 SELECT 'Demonstration Queries' AS section_title FROM DUAL;
@@ -757,30 +735,4 @@ LEFT JOIN APPOINTMENTS a ON p.patient_id = a.patient_id
 LEFT JOIN DIAGNOSTIC_TESTS dt ON a.appointment_id = dt.appointment_id
 GROUP BY p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.gender, p.insurance_provider
 ORDER BY p.last_name, p.first_name;
-
--- =====================================================
--- END OF DML SCRIPT
--- Total Records Inserted: 37
--- - CLINIC_INFO: 1
--- - PATIENTS: 5
--- - STAFF: 8
--- - DOCTORS: 3
--- - APPOINTMENTS: 5
--- - ASSESSMENTS: 5
--- - DIAGNOSTIC_TESTS: 5
--- - TEST_RESULTS: 5
--- =====================================================
 ```
-
----
-
-## Execution Instructions for DataGrip:
-
-### **Step 1: Run DDL Script First**
-Make sure your DDL script has been executed successfully and all tables are created.
-
-### **Step 2: Execute DML Script**
-1. Open this DML script in DataGrip
-2. Select all (Ctrl+A)
-3. Execute (Ctrl+Enter or click green arrow)
-4. Watch for verification queries at the end
