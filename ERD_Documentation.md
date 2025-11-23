@@ -5,14 +5,16 @@
 
 ## ERD Overview
 
-The following ERD shows the relationships between all entities in the MedFirst Diagnostic Center database using Crow's Foot notation.
+This ERD shows the relationships between all entities in the MedFirst Diagnostic Center database using Crow's Foot notation.
 
 ### Key Relationships:
-- **PATIENTS** can have multiple **APPOINTMENTS** (1:M)
-- Each **APPOINTMENT** has one **ASSESSMENT** (1:1)
-- **APPOINTMENTS** can generate multiple **DIAGNOSTIC_TESTS** (1:M)
+- **CLINIC_INFO** employs **STAFF** and hosts **APPOINTMENTS** (1:M)
+- **STAFF** can be **DOCTORS** with specialized attributes (1:1 optional)
+- **PATIENTS** schedule multiple **APPOINTMENTS** (1:M)
+- Each **APPOINTMENT** generates one **ASSESSMENT** (1:1)
+- **APPOINTMENTS** can order multiple **DIAGNOSTIC_TESTS** (1:M)
 - Each **DIAGNOSTIC_TEST** produces one **TEST_RESULT** (1:1)
-- **STAFF** members can be assigned to multiple appointments and tests (1:M)
+- **DOCTORS** order tests and review results (1:M)
 
 ---
 
@@ -20,13 +22,30 @@ The following ERD shows the relationships between all entities in the MedFirst D
 
 ```mermaid
 erDiagram
+    CLINIC_INFO ||--o{ STAFF : "employs"
+    STAFF ||--o| DOCTORS : "is_a"
     PATIENTS ||--o{ APPOINTMENTS : "schedules"
     APPOINTMENTS ||--|| ASSESSMENTS : "generates"
     APPOINTMENTS ||--o{ DIAGNOSTIC_TESTS : "orders"
     DIAGNOSTIC_TESTS ||--|| TEST_RESULTS : "produces"
-    STAFF ||--o{ APPOINTMENTS : "assigned_doctor"
-    STAFF ||--o{ DIAGNOSTIC_TESTS : "performs"
-    STAFF ||--o{ TEST_RESULTS : "reviews"
+    STAFF ||--o{ APPOINTMENTS : "attends"
+    DOCTORS ||--o{ DIAGNOSTIC_TESTS : "orders"
+    DOCTORS ||--o{ TEST_RESULTS : "reviews"
+    CLINIC_INFO ||--o{ APPOINTMENTS : "hosts"
+
+    CLINIC_INFO {
+        NUMBER clinic_id PK
+        VARCHAR2 clinic_name
+        VARCHAR2 street_address
+        VARCHAR2 city
+        CHAR state
+        VARCHAR2 zip_code
+        VARCHAR2 phone
+        VARCHAR2 email
+        VARCHAR2 fax
+        VARCHAR2 operating_hours
+        VARCHAR2 emergency_contact
+    }
 
     PATIENTS {
         NUMBER patient_id PK
@@ -49,11 +68,20 @@ erDiagram
         VARCHAR2 first_name
         VARCHAR2 last_name
         VARCHAR2 role
-        VARCHAR2 specialty
         VARCHAR2 phone
         VARCHAR2 email
-        VARCHAR2 license_number
         DATE hire_date
+        NUMBER clinic_id FK
+    }
+
+    DOCTORS {
+        NUMBER doctor_id PK "FK"
+        VARCHAR2 specialty
+        VARCHAR2 license_number
+        VARCHAR2 board_certification
+        VARCHAR2 workplace
+        VARCHAR2 hospital_affiliation
+        NUMBER years_experience
     }
 
     APPOINTMENTS {
@@ -63,7 +91,8 @@ erDiagram
         VARCHAR2 scheduled_time
         VARCHAR2 appointment_type
         VARCHAR2 status
-        NUMBER doctor_id FK
+        NUMBER attending_staff_id FK
+        NUMBER clinic_id FK
         VARCHAR2 room_number
     }
 
@@ -87,6 +116,7 @@ erDiagram
         VARCHAR2 test_name
         DATE ordered_date
         DATE performed_date
+        NUMBER ordering_doctor_id FK
         NUMBER technician_id FK
         VARCHAR2 status
         VARCHAR2 priority
@@ -100,84 +130,101 @@ erDiagram
         CHAR is_normal
         VARCHAR2 reference_range
         VARCHAR2 notes
-        NUMBER reviewed_by FK
+        NUMBER reviewing_doctor_id FK
     }
 ```
 
 ---
 
-## Relationship Cardinality Details
+## Relationship Details
+
+### CLINIC_INFO → STAFF
+- **Type:** One to Many (1:M)
+- **Rule:** A clinic employs multiple staff members
+- **Mandatory:** Staff must be assigned to a clinic
+
+### STAFF → DOCTORS
+- **Type:** One to One (1:1, optional)
+- **Rule:** Staff members with role 'Doctor' have additional doctor-specific attributes
+- **Mandatory:** No, only doctors have entries in DOCTORS table
 
 ### PATIENTS → APPOINTMENTS
-- **Type:** One-to-Many (1:M)
-- **Business Rule:** One patient can have many appointments over time
-- **Mandatory:** No - patients can exist without appointments
+- **Type:** One to Many (1:M)
+- **Rule:** Patients can schedule multiple appointments
+- **Mandatory:** No, new patients may not have appointments yet
 
 ### APPOINTMENTS → ASSESSMENTS
-- **Type:** One-to-One (1:1)
-- **Business Rule:** Each appointment generates exactly one assessment
-- **Mandatory:** Yes - every completed appointment must have an assessment
+- **Type:** One to One (1:1)
+- **Rule:** Each completed appointment has one assessment
+- **Mandatory:** Yes, for completed appointments
 
 ### APPOINTMENTS → DIAGNOSTIC_TESTS
-- **Type:** One-to-Many (1:M)
-- **Business Rule:** An appointment can order multiple diagnostic tests
-- **Mandatory:** No - not all appointments require tests
+- **Type:** One to Many (1:M)
+- **Rule:** An appointment can order several tests
+- **Mandatory:** No, not all visits require testing
 
 ### DIAGNOSTIC_TESTS → TEST_RESULTS
-- **Type:** One-to-One (1:1)
-- **Business Rule:** Each test produces one result record
-- **Mandatory:** Yes - completed tests must have results
+- **Type:** One to One (1:1)
+- **Rule:** Each completed test has one result
+- **Mandatory:** Yes, for completed tests
 
-### STAFF → APPOINTMENTS (Doctor)
-- **Type:** One-to-Many (1:M)
-- **Business Rule:** A doctor can handle multiple appointments
-- **Mandatory:** Yes - appointments must have an assigned doctor
+### DOCTORS → DIAGNOSTIC_TESTS
+- **Type:** One to Many (1:M)
+- **Rule:** Doctors order multiple tests for patients
+- **Mandatory:** Yes, tests require a doctor's order
 
-### STAFF → DIAGNOSTIC_TESTS (Technician)
-- **Type:** One-to-Many (1:M)
-- **Business Rule:** A technician can perform multiple tests
-- **Mandatory:** No - tests may be pending technician assignment
+### DOCTORS → TEST_RESULTS
+- **Type:** One to Many (1:M)
+- **Rule:** Doctors review multiple test results
+- **Mandatory:** Yes, results need doctor review
 
-### STAFF → TEST_RESULTS (Reviewer)
-- **Type:** One-to-Many (1:M)
-- **Business Rule:** A doctor can review multiple test results
-- **Mandatory:** Yes - results must be reviewed by qualified staff
+### CLINIC_INFO → APPOINTMENTS
+- **Type:** One to Many (1:M)
+- **Rule:** A clinic hosts many appointments
+- **Mandatory:** Yes, appointments happen at a specific clinic
 
 ---
 
 ## Design Decisions
 
-### Why These Entities?
+### Entity Choices
 
-1. **PATIENTS** - Core entity storing all patient demographics
-2. **STAFF** - Unified entity for all employees (doctors, nurses, technicians)
-3. **APPOINTMENTS** - Tracks all patient visits and scheduling
-4. **ASSESSMENTS** - Captures medical evaluation during visits
-5. **DIAGNOSTIC_TESTS** - Manages all ordered tests
-6. **TEST_RESULTS** - Stores outcomes of diagnostic procedures
+1. **CLINIC_INFO** - Stores clinic location and contact information
+2. **PATIENTS** - Patient demographics and insurance data
+3. **STAFF** - All employees (doctors, nurses, technicians)
+4. **DOCTORS** - Additional attributes for doctors only
+5. **APPOINTMENTS** - Scheduling and visit tracking
+6. **ASSESSMENTS** - Medical evaluation data from each visit
+7. **DIAGNOSTIC_TESTS** - Test orders and execution tracking
+8. **TEST_RESULTS** - Lab and diagnostic test outcomes
 
-### Key Design Choices:
+### Design Notes
 
-- **Unified STAFF table:** Rather than separate Doctor, Nurse, Technician tables, we use a role attribute for flexibility
-- **Separate ASSESSMENTS:** Allows detailed medical data without cluttering APPOINTMENTS
-- **TEST_RESULTS as separate entity:** Enables multiple result entries and future expansion
-- **No separate Insurance table:** Kept simple as insurance details are attributes of PATIENTS
+- **Subtype relationship for DOCTORS:** Uses table-per-type approach where DOCTORS extends STAFF. This keeps general employee data in STAFF while doctor-specific fields (specialty, license, certifications) stay separate.
+- **Separate ASSESSMENTS table:** Keeps appointment data clean and allows detailed medical notes without bloating the appointments table.
+- **Separate TEST_RESULTS:** Makes it easier to query test outcomes independently and allows for future expansion.
+- **CLINIC_INFO:** Supports multi-clinic operations if the center expands.
 
 ---
 
-## Indexes Strategy
+## Index Strategy
 
-### Primary Indexes (Automatic on PKs):
+### Primary Indexes (created automatically):
 - `patient_id` on PATIENTS
 - `staff_id` on STAFF
+- `doctor_id` on DOCTORS
+- `clinic_id` on CLINIC_INFO
 - `appointment_id` on APPOINTMENTS
 - `assessment_id` on ASSESSMENTS
 - `test_id` on DIAGNOSTIC_TESTS
 - `result_id` on TEST_RESULTS
 
 ### Recommended Secondary Indexes:
-- `PATIENTS(last_name, first_name)` - Name searches
-- `APPOINTMENTS(patient_id, scheduled_date)` - Patient history
-- `APPOINTMENTS(scheduled_date, scheduled_time)` - Daily schedules
-- `DIAGNOSTIC_TESTS(appointment_id)` - Test lookup by visit
-- `TEST_RESULTS(test_id)` - Result retrieval
+- `PATIENTS(last_name, first_name)` for patient lookup
+- `APPOINTMENTS(patient_id, scheduled_date)` for patient history
+- `APPOINTMENTS(scheduled_date, scheduled_time)` for daily schedules
+- `APPOINTMENTS(clinic_id, scheduled_date)` for clinic scheduling
+- `DIAGNOSTIC_TESTS(appointment_id)` for test lookup by visit
+- `DIAGNOSTIC_TESTS(ordering_doctor_id)` for doctor's ordered tests
+- `TEST_RESULTS(test_id)` for result retrieval
+- `TEST_RESULTS(reviewing_doctor_id)` for doctor's review queue
